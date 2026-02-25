@@ -355,6 +355,12 @@
         function renderTracks(tracks, containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
+            
+            if (!tracks || tracks.length === 0) {
+                container.innerHTML = '<p style="color: var(--hint); text-align: center; margin-top: 20px;">Ничего не найдено</p>';
+                return;
+            }
+
             tracks.forEach(track => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
@@ -364,35 +370,28 @@
                         <div class="track-name">${track.title}</div>
                         <div class="track-artist">${track.artist}</div>
                     </div>
-                    <button class="play-btn" data-url="${track.stream_url}" data-id="${track.id}">▶</button>
-                    <button class="fav-btn" data-id="${track.id}">❤️</button>
+                    <button class="play-btn" style="background:none; border:none; font-size:20px; cursor:pointer;" data-url="${track.stream_url}">▶</button>
+                    <button class="fav-btn" style="background:none; border:none; font-size:20px; cursor:pointer;" data-id="${track.id}">❤️</button>
                 `;
                 container.appendChild(card);
-                btn.addEventListener('click', async (e) => {
+            });
+
+            // Исправленные обработчики
+            container.querySelectorAll('.play-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    playAudio(btn.dataset.url);
+                };
+            });
+
+            container.querySelectorAll('.fav-btn').forEach(btn => {
+                btn.onclick = async (e) => {
                     e.stopPropagation();
                     const trackId = btn.dataset.id;
+                    // Исправлена строка запроса (удален лишний символ $)
                     await apiCall('/favorite/add', { track_id: trackId }, 'POST');
                     tg.HapticFeedback.notificationOccurred('success');
-                });
-            });
-
-            // обработчики воспроизведения
-            document.querySelectorAll('.play-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const url = btn.dataset.url;
-                    playAudio(url);
-                });
-            });
-
-            // обработчики добавления в избранное
-            document.querySelectorAll('.fav-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const trackId = btn.dataset.id;
-                    await apiCall('${API_BASE}/favorite/add', { track_id: trackId }, 'POST');
-                    tg.HapticFeedback.notificationOccurred('success');
-                });
+                };
             });
         }
         let audioContext = null;
