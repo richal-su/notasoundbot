@@ -303,14 +303,25 @@
             document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color);
             document.documentElement.style.setProperty('--text', tg.themeParams.text_color);
         });
-        async function apiCall(endpoint, params = {}) {
-            const url = new URL(`https://richal-su.github.io/notasoundbot/`); // замените на реальный адрес сервера
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-            const response = await fetch(url, {
+        async function apiCall(endpoint, params = {}, method = 'GET') {
+            const url = new URL(API_BASE + endpoint);
+            if (method === 'GET') {
+                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            }
+            const options = {
+                method: method,
                 headers: {
-                    'X-Telegram-Init-Data': initData
+                    'X-Telegram-Init-Data': initData,
+                    'Content-Type': 'application/json'
                 }
-            });
+            };
+            if (method === 'POST') {
+                options.body = JSON.stringify(params);
+            }
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
             return await response.json();
         }
         let currentSearchMode = 'Nota';
@@ -318,7 +329,7 @@
 
         async function performSearch(query) {
             if (query.length < 3) return;
-            const data = await apiCall('${API_BASE}/search', { q: query, mode: currentSearchMode, page: searchPage });
+            const data = await apiCall('/search', { q: query, mode: currentSearchMode, page: searchPage });
             renderTracks(data.results, 'searchResults');
         }
 
@@ -338,7 +349,7 @@
             if (query.length > 2) performSearch(query);
         }
         async function loadFavorites() {
-            const data = await apiCall('${API_BASE}/favorites', { page: 0 });
+            const data = await apiCall('/favorites', { page: 0 });
             renderTracks(data.results, 'favResults');
         }
         function renderTracks(tracks, containerId) {
@@ -357,6 +368,12 @@
                     <button class="fav-btn" data-id="${track.id}">❤️</button>
                 `;
                 container.appendChild(card);
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const trackId = btn.dataset.id;
+                    await apiCall('/favorite/add', { track_id: trackId }, 'POST');
+                    tg.HapticFeedback.notificationOccurred('success');
+                });
             });
 
             // обработчики воспроизведения
@@ -394,7 +411,7 @@
         async function uploadAudio(file) {
             const formData = new FormData();
             formData.append('file', file);
-            const response = await fetch('${API_BASE}/upload', {
+            const response = await fetch(`${API_BASE}/upload`, {
                 method: 'POST',
                 headers: {
                     'X-Telegram-Init-Data': initData
