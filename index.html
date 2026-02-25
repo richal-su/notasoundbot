@@ -255,8 +255,10 @@
     </nav>
 
     <script>
+        const API_BASE = 'https://fruity-papers-turn.loca.lt'; // замените на свой адрес от localtunnel
         const tg = window.Telegram.WebApp;
         tg.expand();
+        const initData = tg.initData;
         tg.enableClosingConfirmation();
 
         let searchTimer;
@@ -275,6 +277,9 @@
             if (tab === 'search') tg.sendData("🔍 Поиск");
             
             tg.HapticFeedback.impactOccurred('light');
+
+            if (tab === 'favs') loadFavorites();
+            if (tab === 'upload') {} // без изменений
         }
 
         function setMode(mode) {
@@ -298,6 +303,109 @@
             document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color);
             document.documentElement.style.setProperty('--text', tg.themeParams.text_color);
         });
+        async function apiCall(endpoint, params = {}) {
+            const url = new URL(`https://richal-su.github.io/notasoundbot/`); // замените на реальный адрес сервера
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            const response = await fetch(url, {
+                headers: {
+                    'X-Telegram-Init-Data': initData
+                }
+            });
+            return await response.json();
+        }
+        let currentSearchMode = 'Nota';
+        let searchPage = 0;
+
+        async function performSearch(query) {
+            if (query.length < 3) return;
+            const data = await apiCall('${API_BASE}/search', { q: query, mode: currentSearchMode, page: searchPage });
+            renderTracks(data.results, 'searchResults');
+        }
+
+        function handleSearch(val) {
+            clearTimeout(searchTimer);
+            if (val.length > 2) {
+                searchTimer = setTimeout(() => performSearch(val), 500);
+            }
+        }
+
+        function setMode(mode) {
+            currentSearchMode = mode;
+            document.getElementById('chip-nota').classList.toggle('active', mode === 'Nota');
+            document.getElementById('chip-sc').classList.toggle('active', mode === 'SoundCloud');
+            // повторяем поиск с новым режимом
+            const query = document.getElementById('searchInput').value;
+            if (query.length > 2) performSearch(query);
+        }
+        async function loadFavorites() {
+            const data = await apiCall('${API_BASE}/favorites', { page: 0 });
+            renderTracks(data.results, 'favResults');
+        }
+        function renderTracks(tracks, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            tracks.forEach(track => {
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+                    <div class="track-icon">🎵</div>
+                    <div class="track-info">
+                        <div class="track-name">${track.title}</div>
+                        <div class="track-artist">${track.artist}</div>
+                    </div>
+                    <button class="play-btn" data-url="${track.stream_url}" data-id="${track.id}">▶</button>
+                    <button class="fav-btn" data-id="${track.id}">❤️</button>
+                `;
+                container.appendChild(card);
+            });
+
+            // обработчики воспроизведения
+            document.querySelectorAll('.play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const url = btn.dataset.url;
+                    playAudio(url);
+                });
+            });
+
+            // обработчики добавления в избранное
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const trackId = btn.dataset.id;
+                    await apiCall('${API_BASE}/favorite/add', { track_id: trackId }, 'POST');
+                    tg.HapticFeedback.notificationOccurred('success');
+                });
+            });
+        }
+        let audioContext = null;
+        let audioElement = null;
+
+        function playAudio(url) {
+            if (audioElement) {
+                audioElement.pause();
+                audioElement = null;
+            }
+            // Просто используем Audio, но можно и Web Audio
+            audioElement = new Audio(url);
+            audioElement.play();
+            // Для Web Audio API нужно создать контекст и подключить, но для простоты оставим так.
+        }
+        async function uploadAudio(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('${API_BASE}/upload', {
+                method: 'POST',
+                headers: {
+                    'X-Telegram-Init-Data': initData
+                },
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                tg.showAlert('Трек загружен!');
+            }
+        }
     </script>
 </body>
 </html>
