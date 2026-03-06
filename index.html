@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NotaSound Premium</title>
+    <title>NotaSound</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -13,7 +13,7 @@
             --button: var(--tg-theme-button-color, #3390ec);
             --button-text: var(--tg-theme-button-text-color, #ffffff);
             --sec-bg: var(--tg-theme-secondary-bg-color, #1c1c1d);
-            --accent: #3390ec; /* Telegram Blue */
+            --accent: #3390ec;
         }
 
         * {
@@ -33,7 +33,6 @@
             overflow: hidden;
         }
 
-        /* Красивый скроллбар */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--hint); border-radius: 10px; }
 
@@ -58,7 +57,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Поиск в стиле Spotify */
         .search-container {
             position: sticky;
             top: 0;
@@ -92,7 +90,6 @@
             cursor: text;
         }
 
-        /* Фильтры источников */
         .source-chips {
             display: flex;
             gap: 10px;
@@ -105,7 +102,7 @@
             background: var(--sec-bg);
             font-size: 13px;
             font-weight: 600;
-            cursor: pointer; /* Исправлено: теперь палец */
+            cursor: pointer;
             transition: 0.2s ease;
             border: none;
             color: var(--text);
@@ -118,7 +115,6 @@
 
         .chip:hover { opacity: 0.85; transform: translateY(-1px); }
 
-        /* Карточки треков */
         .track-card {
             background: linear-gradient(90deg, var(--sec-bg) 0%, transparent 100%);
             border-radius: 12px;
@@ -127,7 +123,7 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            cursor: pointer; /* Исправлено: теперь палец */
+            cursor: pointer;
             transition: all 0.2s;
         }
 
@@ -157,7 +153,6 @@
         }
         .track-artist { font-size: 13px; color: var(--hint); margin-top: 3px; }
 
-        /* Загрузка */
         .upload-section {
             background: var(--sec-bg);
             border-radius: 22px;
@@ -167,7 +162,6 @@
             margin-top: 20px;
         }
 
-        /* Нижнее меню */
         .nav-bottom {
             position: fixed;
             bottom: 0;
@@ -190,7 +184,7 @@
             font-size: 10px;
             font-weight: 500;
             flex: 1;
-            cursor: pointer; /* Исправлено: теперь палец */
+            cursor: pointer;
             transition: 0.2s;
         }
 
@@ -199,229 +193,380 @@
         
         .nav-icon { font-size: 24px; }
 
-        /* Скрываем старую пагинацию */
-        .pagination { display: none; }
+        .external-badge {
+            background: var(--hint);
+            color: #000;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
 
+        .player-bar {
+            position: fixed;
+            bottom: 70px;
+            left: 0;
+            right: 0;
+            background: var(--sec-bg);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-top: 1px solid #333;
+            z-index: 100;
+            display: none;
+        }
+        .player-info { flex: 1; }
+        .player-progress {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+        .player-progress-filled {
+            height: 100%;
+            background: var(--button);
+            border-radius: 2px;
+            width: 0%;
+        }
+        .player-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .player-controls button {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-
     <header id="headerTitle">Поиск</header>
 
     <div class="main-container">
         <div id="tab-search" class="tab-content active">
             <div class="search-container">
                 <div class="search-bar" onclick="document.getElementById('searchInput').focus()">
-                    <input type="text" id="searchInput" placeholder="Что хочешь послушать?" oninput="handleSearch(this.value)">
+                    <input type="text" id="searchInput" placeholder="Что хочешь послушать?" autocomplete="off">
                 </div>
                 <div class="source-chips">
-                    <button id="chip-nota" class="chip active" onclick="setMode('Nota')">📁 Моя база</button>
-                    <button id="chip-sc" class="chip" onclick="setMode('SoundCloud')">🌐 SoundCloud</button>
+                    <button id="chip-nota" class="chip active" data-mode="Nota">📁 Nota</button>
+                    <button id="chip-sc" class="chip" data-mode="SoundCloud">🌐 SoundCloud</button>
                 </div>
             </div>
-            <div id="searchResults">
-                </div>
+            <div id="trending-section">
+                <h3 style="margin: 20px 0 10px;">Популярное сейчас</h3>
+                <div id="trending-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px;"></div>
+            </div>
+            <div id="searchResults"></div>
         </div>
 
         <div id="tab-favs" class="tab-content">
-            <div id="favResults">
-                <p style="color: var(--hint); text-align: center; margin-top: 40px;">Твое избранное появится в чате.</p>
-            </div>
+            <div id="favResults"></div>
         </div>
 
         <div id="tab-upload" class="tab-content">
             <div class="upload-section">
                 <div style="font-size: 50px; margin-bottom: 20px;">📤</div>
                 <h3 style="margin: 0 0 10px;">Добавить музыку</h3>
-                <p style="color: var(--hint); font-size: 14px; line-height: 1.5;">Просто отправь аудиофайл боту в чат. Я увижу его и добавлю в базу **Nota**.</p>
-                <button class="chip active" style="margin-top: 20px; width: 80%; padding: 12px;" onclick="tg.close()">Вернуться в чат</button>
+                <p style="color: var(--hint); font-size: 14px; line-height: 1.5;">Просто отправь аудиофайл боту в чат. Я увижу его и добавлю в базу Nota.</p>
+                <input type="file" id="file-upload" accept="audio/*" style="display: none;">
+                <button class="chip active" style="margin-top: 20px; width: 80%; padding: 12px;" onclick="document.getElementById('file-upload').click()">Выбрать файл</button>
+                <p style="margin-top: 20px; color: var(--hint);">Или отправь в бота: <a href="https://t.me/your_bot?start=upload" style="color: var(--button);">@NotaSoundBot</a></p>
             </div>
         </div>
     </div>
 
+    <div class="player-bar" id="player-bar">
+        <div class="player-info">
+            <div id="player-title"></div>
+            <div id="player-artist" style="color: var(--hint); font-size: 14px;"></div>
+            <div class="player-progress" id="player-progress" onclick="seek(event)">
+                <div class="player-progress-filled" id="player-progress-filled"></div>
+            </div>
+        </div>
+        <div class="player-controls">
+            <button id="play-pause-btn">⏸️</button>
+            <button id="close-player">✖️</button>
+        </div>
+    </div>
+
     <nav class="nav-bottom">
-        <div class="nav-item active" onclick="switchTab('search', 'Поиск')">
+        <div class="nav-item active" onclick="switchTab('search')">
             <span class="nav-icon">🏠</span>
             <span>ГЛАВНАЯ</span>
         </div>
-        <div class="nav-item" onclick="switchTab('favs', 'Избранное')">
+        <div class="nav-item" onclick="switchTab('favs')">
             <span class="nav-icon">❤️</span>
             <span>ЛЮБИМОЕ</span>
         </div>
-        <div class="nav-item" onclick="switchTab('upload', 'Загрузка')">
+        <div class="nav-item" onclick="switchTab('upload')">
             <span class="nav-icon">☁️</span>
             <span>ОБЛАКО</span>
         </div>
     </nav>
 
     <script>
-        const API_BASE = 'https://fruity-papers-turn.loca.lt'; // замените на свой адрес от localtunnel
+        const API_BASE = 'https://darlingly-multidisciplinary-izola.ngrok-free.dev/index2.html'; // Замените на свой адрес localtunnel
         const tg = window.Telegram.WebApp;
         tg.expand();
-        const initData = tg.initData;
-        tg.enableClosingConfirmation();
+        tg.ready();
 
-        let searchTimer;
+        let currentAudio = null;
+        let currentMode = 'Nota';
+        let searchPage = 0;
+        let favPage = 0;
 
-        function switchTab(tab, title) {
+        function setTheme() {
+            document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color || '#0f0f0f');
+            document.documentElement.style.setProperty('--text', tg.themeParams.text_color || '#ffffff');
+            document.documentElement.style.setProperty('--button', tg.themeParams.button_color || '#3390ec');
+        }
+        tg.onEvent('themeChanged', setTheme);
+        setTheme();
+
+        function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            
             document.getElementById('tab-' + tab).classList.add('active');
             event.currentTarget.classList.add('active');
-            document.getElementById('headerTitle').innerText = title;
-
-            // Связь с бэкендом
-            if (tab === 'favs') tg.sendData("❤️ Избранное");
-            if (tab === 'upload') tg.sendData("☁️ Загрузить");
-            if (tab === 'search') tg.sendData("🔍 Поиск");
-            
-            tg.HapticFeedback.impactOccurred('light');
-
-            if (tab === 'favs') loadFavorites();
-            if (tab === 'upload') {} // без изменений
+            document.getElementById('headerTitle').innerText = tab === 'search' ? 'Поиск' : tab === 'favs' ? 'Избранное' : 'Загрузка';
+            if (tab === 'search') loadTrending();
+            if (tab === 'favs') loadFavorites(0);
         }
 
-        function setMode(mode) {
-            document.getElementById('chip-nota').classList.toggle('active', mode === 'Nota');
-            document.getElementById('chip-sc').classList.toggle('active', mode === 'SoundCloud');
-            tg.sendData(mode === 'Nota' ? "📁 Nota" : "🌐 SoundCloud");
-            tg.HapticFeedback.selectionChanged();
-        }
-
-        function handleSearch(val) {
-            clearTimeout(searchTimer);
-            if (val.length > 2) {
-                searchTimer = setTimeout(() => {
-                    tg.sendData(val);
-                }, 700);
-            }
-        }
-
-        // Авто-подстройка цветов под тему Telegram
-        tg.onEvent('themeChanged', () => {
-            document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color);
-            document.documentElement.style.setProperty('--text', tg.themeParams.text_color);
-        });
-        async function apiCall(endpoint, params = {}, method = 'GET') {
-            const url = new URL(API_BASE + endpoint);
-            if (method === 'GET') {
-                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-            }
-            const options = {
-                method: method,
-                headers: {
-                    'X-Telegram-Init-Data': initData,
-                    'Content-Type': 'application/json'
-                }
-            };
-            if (method === 'POST') {
-                options.body = JSON.stringify(params);
-            }
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-            return await response.json();
-        }
-        let currentSearchMode = 'Nota';
-        let searchPage = 0;
-
-        async function performSearch(query) {
-            if (query.length < 3) return;
-            const data = await apiCall('/search', { q: query, mode: currentSearchMode, page: searchPage });
-            renderTracks(data.results, 'searchResults');
-        }
-
-        function handleSearch(val) {
-            clearTimeout(searchTimer);
-            if (val.length > 2) {
-                searchTimer = setTimeout(() => performSearch(val), 500);
-            }
-        }
-
-        function setMode(mode) {
-            currentSearchMode = mode;
-            document.getElementById('chip-nota').classList.toggle('active', mode === 'Nota');
-            document.getElementById('chip-sc').classList.toggle('active', mode === 'SoundCloud');
-            // повторяем поиск с новым режимом
+        document.getElementById('chip-nota').addEventListener('click', () => {
+            document.getElementById('chip-nota').classList.add('active');
+            document.getElementById('chip-sc').classList.remove('active');
+            currentMode = 'Nota';
             const query = document.getElementById('searchInput').value;
-            if (query.length > 2) performSearch(query);
+            if (query.length > 2) performSearch(query, 0);
+        });
+        document.getElementById('chip-sc').addEventListener('click', () => {
+            document.getElementById('chip-sc').classList.add('active');
+            document.getElementById('chip-nota').classList.remove('active');
+            currentMode = 'SoundCloud';
+            const query = document.getElementById('searchInput').value;
+            if (query.length > 2) performSearch(query, 0);
+        });
+
+        let searchTimer;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            const query = e.target.value;
+            if (query.length > 2) {
+                searchTimer = setTimeout(() => {
+                    searchPage = 0;
+                    performSearch(query, 0);
+                }, 500);
+            } else {
+                document.getElementById('searchResults').innerHTML = '';
+                document.getElementById('trending-section').style.display = 'block';
+            }
+        });
+
+        async function performSearch(query, page) {
+            document.getElementById('trending-section').style.display = 'none';
+            const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}&mode=${currentMode}&page=${page}`, {
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            });
+            const data = await response.json();
+            renderSearchResults(data.results);
         }
-        async function loadFavorites() {
-            const data = await apiCall('/favorites', { page: 0 });
-            renderTracks(data.results, 'favResults');
-        }
-        function renderTracks(tracks, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            
+
+        function renderSearchResults(tracks) {
+            const container = document.getElementById('searchResults');
             if (!tracks || tracks.length === 0) {
-                container.innerHTML = '<p style="color: var(--hint); text-align: center; margin-top: 20px;">Ничего не найдено</p>';
+                container.innerHTML = '<p style="color: var(--hint); text-align: center;">Ничего не найдено</p>';
                 return;
             }
-
-            tracks.forEach(track => {
-                const card = document.createElement('div');
-                card.className = 'track-card';
-                card.innerHTML = `
-                    <div class="track-icon">🎵</div>
-                    <div class="track-info">
-                        <div class="track-name">${track.title}</div>
-                        <div class="track-artist">${track.artist}</div>
+            let html = '';
+            tracks.forEach(t => {
+                const hasStream = t.stream_url && t.source === 'nota';
+                const playAction = hasStream ? 'play' : 'command';
+                const command = hasStream ? '' : `/play_${t.id}`;
+                html += `
+                    <div class="track-card" data-stream="${t.stream_url || ''}" data-command="${command}" data-title="${t.title}" data-artist="${t.artist}">
+                        <div class="track-icon">🎵</div>
+                        <div class="track-info">
+                            <div class="track-name">${t.title}</div>
+                            <div class="track-artist">${t.artist}</div>
+                        </div>
+                        ${!hasStream ? '<span class="external-badge">бот</span>' : ''}
+                        <button class="fav-btn" style="background:none; border:none; font-size:20px; cursor:pointer;" data-id="${t.id}">❤️</button>
                     </div>
-                    <button class="play-btn" style="background:none; border:none; font-size:20px; cursor:pointer;" data-url="${track.stream_url}">▶</button>
-                    <button class="fav-btn" style="background:none; border:none; font-size:20px; cursor:pointer;" data-id="${track.id}">❤️</button>
                 `;
-                container.appendChild(card);
             });
-
-            // Исправленные обработчики
-            container.querySelectorAll('.play-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    playAudio(btn.dataset.url);
-                };
+            container.innerHTML = html;
+            document.querySelectorAll('.track-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('fav-btn')) return;
+                    const stream = card.dataset.stream;
+                    const command = card.dataset.command;
+                    const title = card.dataset.title;
+                    const artist = card.dataset.artist;
+                    if (stream) playTrack(stream, title, artist);
+                    else if (command) sendBotCommand(command);
+                });
             });
-
-            container.querySelectorAll('.fav-btn').forEach(btn => {
-                btn.onclick = async (e) => {
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const trackId = btn.dataset.id;
-                    // Исправлена строка запроса (удален лишний символ $)
-                    await apiCall('/favorite/add', { track_id: trackId }, 'POST');
+                    const id = btn.dataset.id;
+                    await fetch(`${API_BASE}/favorite/add`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
+                        body: JSON.stringify({ track_id: id })
+                    });
                     tg.HapticFeedback.notificationOccurred('success');
-                };
+                });
             });
         }
-        let audioContext = null;
-        let audioElement = null;
 
-        function playAudio(url) {
-            if (audioElement) {
-                audioElement.pause();
-                audioElement = null;
+        async function loadTrending() {
+            const response = await fetch(`${API_BASE}/trending`, {
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            });
+            const data = await response.json();
+            const grid = document.getElementById('trending-grid');
+            if (data.trending && data.trending.length) {
+                let html = '';
+                data.trending.forEach(t => {
+                    html += `
+                        <div class="track-card" data-stream="${t.stream_url}" data-title="${t.title}" data-artist="${t.artist}" style="flex-direction: column; text-align: center;">
+                            <div class="track-icon" style="margin-bottom: 8px;">🎵</div>
+                            <div class="track-name">${t.title}</div>
+                            <div class="track-artist">${t.artist}</div>
+                        </div>
+                    `;
+                });
+                grid.innerHTML = html;
+                document.querySelectorAll('#trending-grid .track-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        playTrack(card.dataset.stream, card.dataset.title, card.dataset.artist);
+                    });
+                });
+            } else {
+                grid.innerHTML = '<p style="color: var(--hint);">Пока нет данных</p>';
             }
-            // Просто используем Audio, но можно и Web Audio
-            audioElement = new Audio(url);
-            audioElement.play();
-            // Для Web Audio API нужно создать контекст и подключить, но для простоты оставим так.
         }
-        async function uploadAudio(file) {
+
+        async function loadFavorites(page) {
+            const response = await fetch(`${API_BASE}/favorites?page=${page}`, {
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            });
+            const data = await response.json();
+            const container = document.getElementById('favResults');
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<p style="color: var(--hint); text-align: center;">Тут пока пусто</p>';
+                return;
+            }
+            let html = '';
+            data.results.forEach(t => {
+                html += `
+                    <div class="track-card" data-stream="${t.stream_url}" data-title="${t.title}" data-artist="${t.artist}">
+                        <div class="track-icon">🎵</div>
+                        <div class="track-info">
+                            <div class="track-name">${t.title}</div>
+                            <div class="track-artist">${t.artist}</div>
+                        </div>
+                        <button class="fav-btn" style="background:none; border:none; font-size:20px; cursor:pointer; color: var(--button);" data-id="${t.id}">❤️</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.querySelectorAll('#favResults .track-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('fav-btn')) return;
+                    playTrack(card.dataset.stream, card.dataset.title, card.dataset.artist);
+                });
+            });
+            document.querySelectorAll('#favResults .fav-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    await fetch(`${API_BASE}/favorite/remove`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
+                        body: JSON.stringify({ track_id: id })
+                    });
+                    btn.closest('.track-card').remove();
+                });
+            });
+        }
+
+        function sendBotCommand(command) {
+            tg.sendData(command);
+            tg.HapticFeedback.impactOccurred('light');
+            tg.showAlert('Команда отправлена боту. Трек появится в чате.');
+        }
+
+        function playTrack(streamUrl, title, artist) {
+            if (currentAudio) currentAudio.pause();
+            currentAudio = new Audio(streamUrl);
+            currentAudio.play();
+            document.getElementById('player-title').innerText = title;
+            document.getElementById('player-artist').innerText = artist;
+            document.getElementById('player-bar').style.display = 'flex';
+            document.getElementById('play-pause-btn').innerText = '⏸️';
+            currentAudio.addEventListener('timeupdate', updateProgress);
+            currentAudio.addEventListener('ended', () => {
+                document.getElementById('play-pause-btn').innerText = '▶️';
+            });
+        }
+
+        function updateProgress() {
+            if (currentAudio && currentAudio.duration) {
+                const percent = (currentAudio.currentTime / currentAudio.duration) * 100;
+                document.getElementById('player-progress-filled').style.width = percent + '%';
+            }
+        }
+
+        function seek(event) {
+            if (currentAudio && currentAudio.duration) {
+                const rect = document.getElementById('player-progress').getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const percent = x / rect.width;
+                currentAudio.currentTime = percent * currentAudio.duration;
+            }
+        }
+
+        document.getElementById('play-pause-btn').addEventListener('click', () => {
+            if (currentAudio.paused) {
+                currentAudio.play();
+                document.getElementById('play-pause-btn').innerText = '⏸️';
+            } else {
+                currentAudio.pause();
+                document.getElementById('play-pause-btn').innerText = '▶️';
+            }
+        });
+
+        document.getElementById('close-player').addEventListener('click', () => {
+            currentAudio.pause();
+            currentAudio = null;
+            document.getElementById('player-bar').style.display = 'none';
+        });
+
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
             const formData = new FormData();
             formData.append('file', file);
             const response = await fetch(`${API_BASE}/upload`, {
                 method: 'POST',
-                headers: {
-                    'X-Telegram-Init-Data': initData
-                },
+                headers: { 'X-Telegram-Init-Data': tg.initData },
                 body: formData
             });
-            const result = await response.json();
-            if (result.success) {
-                tg.showAlert('Трек загружен!');
-            }
-        }
+            if (response.ok) tg.showAlert('Файл загружен!');
+            else tg.showAlert('Ошибка загрузки.');
+        });
+
+        loadTrending();
     </script>
 </body>
 </html>
